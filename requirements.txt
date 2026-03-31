@@ -1,4 +1,5 @@
 crewai
-langchain-openai
+crewai-tools
+litellm
 python-dotenv
 streamlit
