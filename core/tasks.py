@@ -27,22 +27,28 @@ class ContentFactoryTasks:
             CRITICAL RULES:
             - Do NOT include any features or claims listed in the 'Red Flags' section. 
             - You MUST explicitly state the Product Name in all pieces of content.
+            - ALL HEADERS MUST USE STRICT MARKDOWN (e.g., ## or ###) followed by a blank line so they render as large text.
 
             Generate exactly THREE distinct sections with clear Markdown headers (##):
             
             1. ## Blog Post
-                - Create a catchy, **bolded** title. Write 2 professional paragraphs.
+                - TONE DIRECTIVE: Must be highly **Professional, authoritative, and educational**.
+                - Create a catchy title formatted as an H3 Markdown header (e.g., ### [Your Catchy Title]).
+                - Write a comprehensive, highly engaging **500-word blog post**. Expand on the value propositions and technical specs to meet this exact length.
                
             2. ## Social Media Strategy
-                - Dynamically select the THREE most relevant platforms for this specific target audience (e.g., LinkedIn, X, Instagram, Facebook).
-                - FORMATTING: Use a sub-header for each platform (e.g., ### [Platform Name]). You MUST add a blank line between the header, the post body, and the hashtags to create visual breathing room.
-                - MAKE IT DATA-DRIVEN: You MUST include the specific, impressive technical numbers and flagship features directly from the fact-sheet (e.g., exact performance metrics, speeds, capacities, or trustworthy figures provided). Do not write boring, generic descriptions.
-                - **Bold** the hashtags at the bottom of each post.
+                - TONE DIRECTIVE: Must be **Punchy, engaging, trendy, and scroll-stopping**.
+                - Dynamically select the most relevant platforms for this specific target audience (e.g., LinkedIn, X, Instagram, Facebook).
+                - FORMATTING: Generate exactly a **5-post Social Media Thread** (e.g., a 5-part thread on X, or 5 distinct posts distributed across LinkedIn/Instagram/Facebook). 
+                - Use an H3 sub-header (###) for each post indicating the platform (e.g., ### LinkedIn - Post 1). You MUST add a blank line between the header, the post body, and the hashtags to create visual breathing room.
+                - MAKE IT DATA-DRIVEN: You MUST include the specific, impressive technical numbers and flagship features directly from the fact-sheet. Do not write boring, generic descriptions.
+                - **Bold** the hashtags at the bottom.
                
             3. ## Email Teaser
+                - TONE DIRECTIVE: Must be **Direct, persuasive, and urgency-driven**.
                 - 1-paragraph. Direct call-to-action. Mock URL: 'www.cymonic.com/launch'.
             """,
-            expected_output="A single Markdown document containing the Blog Post, the 3-Platform Social Media Strategy (with breathing room and data-driven metrics), and the Email Teaser.",
+            expected_output="A single Markdown document containing the 500-word Blog Post, the 5-post Social Media Strategy (platform specific), and the Email Teaser, utilizing strict Markdown headers for formatting.",
             agent=agent,
             context=[context_task] 
         )
