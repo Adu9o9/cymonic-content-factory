@@ -2,7 +2,7 @@
 
 An autonomous, multi-agent AI pipeline that transforms raw, messy product specifications into fact-checked, brand-safe marketing assets and custom generative visuals.
 
-🌍 **Live Demo:** [INSERT_YOUR_STREAMLIT_LINK_HERE]
+🌍 **Live Demo:** https://cymonic-content-factory-r3zwb8lm3prpbturmpkvz6.streamlit.app/
 
 ## 🚀 Architecture & Engineering Decisions
 
