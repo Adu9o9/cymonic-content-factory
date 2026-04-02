@@ -3,3 +3,5 @@ crewai-tools
 litellm
 python-dotenv
 streamlit
+beautifulsoup4
+requests
