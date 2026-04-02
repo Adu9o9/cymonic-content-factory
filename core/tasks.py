@@ -33,22 +33,23 @@ class ContentFactoryTasks:
             
             1. ## Blog Post
                 - TONE DIRECTIVE: Must be highly **Professional, authoritative, and educational**.
-                - Create a catchy title formatted as an H3 Markdown header (e.g., ### [Your Catchy Title]).
-                - Write a comprehensive, highly engaging **500-word blog post**. Expand on the value propositions and technical specs to meet this exact length.
+                - Create a catchy title formatted as an H3 Markdown header (e.g., ### [Catchy Title]).
+                - Write a comprehensive, highly engaging **500-word blog post**. Expand on the value propositions and technical specs.
                
             2. ## Social Media Strategy
                 - TONE DIRECTIVE: Must be **Punchy, engaging, trendy, and scroll-stopping**.
-                - Dynamically select the most relevant platforms for this specific target audience (e.g., LinkedIn, X, Instagram, Facebook).
-                - FORMATTING: Generate exactly a **5-post Social Media Thread** (e.g., a 5-part thread on X, or 5 distinct posts distributed across LinkedIn/Instagram/Facebook). 
-                - Use an H3 sub-header (###) for each post indicating the platform (e.g., ### LinkedIn - Post 1). You MUST add a blank line between the header, the post body, and the hashtags to create visual breathing room.
-                - MAKE IT DATA-DRIVEN: You MUST include the specific, impressive technical numbers and flagship features directly from the fact-sheet. Do not write boring, generic descriptions.
+                - HARD PLATFORM RULE: You must first classify the product as B2B or B2C. 
+                  * IF B2C (Cosmetics, personal tech, consumer goods): You are STRICTLY FORBIDDEN from using LinkedIn. You must allocate your 5 posts across Instagram, Facebook, and X ONLY (e.g., 3 on Instagram, 2 on Facebook).
+                  * IF B2B (Enterprise software, corporate tools): You are STRICTLY FORBIDDEN from using Instagram and Facebook. You must allocate your 5 posts across LinkedIn and X ONLY (e.g., 3 on LinkedIn, 2 on X).
+                - FORMATTING: Group your 5 posts sequentially by platform. Use an H3 sub-header for each post indicating the platform and sequence (e.g., ### Instagram - Post 1 of 3). You MUST add a blank line between the header, the post body, and the hashtags.
+                - MAKE IT DATA-DRIVEN: Include specific technical numbers and flagship features.
                 - **Bold** the hashtags at the bottom.
                
             3. ## Email Teaser
                 - TONE DIRECTIVE: Must be **Direct, persuasive, and urgency-driven**.
                 - 1-paragraph. Direct call-to-action. Mock URL: 'www.cymonic.com/launch'.
             """,
-            expected_output="A single Markdown document containing the 500-word Blog Post, the 5-post Social Media Strategy (platform specific), and the Email Teaser, utilizing strict Markdown headers for formatting.",
+            expected_output="A single Markdown document containing the 500-word Blog Post, 5 dynamically allocated social media posts adhering strictly to the B2B/B2C forbidden platform rules, and the Email Teaser.",
             agent=agent,
             context=[context_task] 
         )
@@ -78,10 +79,10 @@ class ContentFactoryTasks:
             CRITICAL RULES:
             - Output ONLY the prompt text. Under 40 words.
             - Describe a highly relevant product environment based on the actual product.
-            - TYPOGRAPHY: You MUST ask the AI to write the Product Name in the image EXACTLY ONCE.
+            - TYPOGRAPHY & SANITIZATION: You MUST ask the AI to write the Product Name in the image EXACTLY ONCE. However, to prevent URL parsing errors, you MUST strip out all special characters (%, +, &, #, etc.) and shorten the text to a maximum of 4 words. Use ONLY the core alphanumeric brand name.
             - THE FIX: To hide potential AI spelling errors, explicitly instruct the generator to make the text SUBTLE, SMALL, and SECONDARY.
-            - SURFACE CONTEXT: Place the text on a surface that actually makes sense for the specific product category. Examples: printed on a frosted glass bottle or jar for cosmetics/skincare, engraved on a metal casing for hardware, displayed on a clean interface for software, or embossed on premium cardboard packaging. Do NOT default to a "monitor" unless it is a digital product.
-            - Example format: "[Environment], [lighting], with the text '[Actual Product Name]' written subtly on [a highly relevant object/surface], 8k resolution"
+            - SURFACE CONTEXT: Place the text on a surface that makes sense for the specific product category (e.g., printed on a frosted glass bottle for cosmetics, engraved on metal for hardware, displayed on a clean interface for software). Do NOT default to a "monitor" unless it is a digital product.
+            - Example format: "[Environment], [lighting], with the text '[Shortened Alphanumeric Brand Name]' written subtly on [a highly relevant object/surface], 8k resolution"
             """,
             expected_output="A short, single string of text representing the image generation prompt.",
             agent=agent,

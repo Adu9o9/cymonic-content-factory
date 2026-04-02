@@ -1,10 +1,33 @@
 import streamlit as st
 import os
 import urllib.parse
+import requests
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from crewai import Crew, Process
 from core.agents import ContentFactoryAgents
 from core.tasks import ContentFactoryTasks
+
+def scrape_website(url):
+    """Scrapes the main text content from a given URL."""
+    try:
+        # Pretend to be a normal web browser so websites don't block us
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Strip away the messy code, navbars, and scripts
+        for script in soup(["script", "style", "nav", "footer", "header"]):
+            script.extract()
+            
+        # Get the clean text
+        text = soup.get_text(separator=' ', strip=True)
+        return text[:2500] # Reduced from 5000 to prevent Groq 12k TPM Rate Limits!
+        
+    except Exception as e:
+        return f"Error scraping URL: {str(e)}"
 
 load_dotenv()
 
@@ -76,6 +99,34 @@ st.markdown("""
         div[data-testid="stDownloadButton"] > button:hover {
             background-color: #F3F4F6 !important;
         }
+
+        /* Center the tabs and space them out */
+        [data-baseweb="tab-list"] {
+            justify-content: center;
+            gap: 2rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        /* Unselected Tab - Gray but completely visible */
+        [data-baseweb="tab"] {
+            color: #888888 !important;
+            background-color: transparent !important;
+            font-weight: 500 !important;
+            font-size: 1.1rem !important;
+        }
+        /* Selected Tab - Bold and Black */
+        [aria-selected="true"] {
+            color: #111111 !important;
+            font-weight: 700 !important;
+            border-bottom: 2px solid #111111 !important;
+        }
+        /* Fix the URL Input Box to be White like the Text Area */
+        .stTextInput input {
+            background-color: #ffffff !important;
+            color: #111111 !important;
+            caret-color: #111111 !important; /* <--- This brings the blinking cursor back! */
+            border: 1px solid #cccccc !important;
+            border-radius: 4px !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -91,10 +142,30 @@ st.markdown("""
 col_spacer1, col_main, col_spacer2 = st.columns([1, 4, 1])
 
 with col_main:
-    # Slightly larger, spaced-out label for the input
-    st.markdown("<p style='font-family: Inter; font-size: 1rem; letter-spacing: 1.5px; color: #666; margin-bottom: 10px; margin-top: 20px; text-align: center;'>ENTER RAW SPECIFICATIONS</p>", unsafe_allow_html=True)
+    # --- INPUT SECTION WITH TABS ---
+    st.markdown("<h3 style='font-family: Playfair Display, serif; font-weight: 600; color: #111;'>ENTER RAW SPECIFICATIONS</h3>", unsafe_allow_html=True)
     
-    source_text = st.text_area("HiddenLabel", height=160, label_visibility="collapsed", placeholder="E.g., The SuperWidget 3000 features a quantum processor, 16GB RAM, and all-day battery...")
+    tab1, tab2 = st.tabs(["📝 Paste Text", "🌐 Scrape URL"])
+    
+    with tab1:
+        source_text_input = st.text_area("Raw Product Details", height=200, placeholder="Paste your messy product specs, developer notes, or Slack messages here...")
+        
+    with tab2:
+        url_input = st.text_input("Product Website URL", placeholder="e.g., https://www.apple.com/macbook-pro/")
+        st.caption("The AI will invisibly scrape and read the webpage for you. *(Find a product page online, e.g., a smartwatch on Amazon or a software tool's landing page, and paste the URL here)*")
+
+    # Determine which input to use
+    source_text = ""
+    if url_input:
+        with st.spinner("Scraping website data..."):
+            source_text = scrape_website(url_input)
+            if "Error" in source_text:
+                st.error(source_text)
+                source_text = "" # Reset if it failed
+            else:
+                st.success("Website successfully scraped!")
+    elif source_text_input:
+        source_text = source_text_input
     
     st.markdown("<br>", unsafe_allow_html=True) # Extra whitespace before the button
     
