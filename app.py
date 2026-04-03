@@ -128,6 +128,25 @@ st.markdown("""
             border: 1px solid #cccccc !important;
             border-radius: 4px !important;
         }
+
+        /* --- Fix Metric Dashboard Visibility & Styling --- */
+        [data-testid="stMetricValue"] {
+            color: #111111 !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+            font-weight: 700 !important;
+            font-size: 1.8rem !important;
+            margin-top: 12px !important; /* This adds the beautiful spacing from the label! */
+        }
+        [data-testid="stMetricLabel"] {
+            color: #666666 !important;
+            font-weight: 600 !important;
+            font-size: 1rem !important;
+        }
+        [data-testid="stMetricDelta"] {
+            color: #555555 !important;
+            font-weight: 500 !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -188,24 +207,31 @@ if run_button:
             
             st.write("✍️ **Agent 2:** Drafting multi-channel campaign...")
             copywriter = agents.copywriter_agent()
-            write_campaign = tasks.copywriting_task(copywriter, context_task=extract_truth)
+            draft_campaign = tasks.copywriting_task(copywriter, context_task=extract_truth)
             
             st.write("🛡️ **Agent 3:** Auditing against Red Flags...")
             editor = agents.editor_agent()
-            audit_campaign = tasks.editing_task(editor, extract_truth, write_campaign)
+            audit_campaign = tasks.editing_task(editor, extract_truth, draft_campaign)
             
             st.write("🎨 **Agent 4:** Generating visual prompt...")
-            director = agents.visual_director_agent()
-            design_visual = tasks.image_prompt_task(director, audit_task=audit_campaign)
+            visual_director = agents.visual_director_agent()
+            design_visual = tasks.image_prompt_task(visual_director, audit_task=audit_campaign)
             
+            st.write("🚀 **Pipeline:** Initiating multi-agent collaboration...")
             crew = Crew(
-                agents=[researcher, copywriter, editor, director],
-                tasks=[extract_truth, write_campaign, audit_campaign, design_visual],
-                process=Process.sequential, 
-                verbose=False
+                agents=[researcher, copywriter, editor, visual_director],
+                tasks=[extract_truth, draft_campaign, audit_campaign, design_visual],
+                verbose=True
             )
             
+            # --- THE STOPWATCH ---
+            start_time = time.time()
             result = crew.kickoff()
+            end_time = time.time()
+            
+            # Calculate total seconds, rounded to 2 decimal places
+            execution_time = round(end_time - start_time, 2)
+            # --------------------
             
             final_campaign_text = audit_campaign.output.raw
             image_prompt_text = design_visual.output.raw
@@ -238,3 +264,20 @@ if run_button:
                 file_name="cymonic_campaign.md",
                 mime="text/markdown",
             )
+
+        # --- EXECUTION ANALYTICS WIDGET ---
+        st.markdown("<br><hr>", unsafe_allow_html=True)
+        st.markdown("<h3 style='font-family: Playfair Display; color: #111;'>📊 Pipeline Execution Analytics</h3>", unsafe_allow_html=True)
+        
+        # Create 3 beautiful columns for our metrics
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric(label="⏱️ Assembly Line Speed", value=f"{execution_time} sec")
+            
+        with col2:
+            st.metric(label="🤖 Agents Orchestrated", value="4 Autonomous Nodes")
+            
+        with col3:
+            # A fun flex to show you are using the Groq Free Tier efficiently
+            st.metric(label="💰 Est. Compute Cost", value="$0.00", delta="-100% vs OpenAI")
