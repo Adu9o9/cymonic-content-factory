@@ -28,6 +28,7 @@ class ContentFactoryTasks:
             - Do NOT include any features or claims listed in the 'Red Flags' section. 
             - You MUST explicitly state the Product Name in all pieces of content.
             - ALL HEADERS MUST USE STRICT MARKDOWN (e.g., ## or ###) followed by a blank line so they render as large text.
+            - NO CONVERSATIONAL FILLER: Output ONLY the final marketing text. Do not include meta-commentary (e.g., "Since this is a B2C product...").
 
             Generate exactly THREE distinct sections with clear Markdown headers (##):
             
@@ -38,18 +39,18 @@ class ContentFactoryTasks:
                
             2. ## Social Media Strategy
                 - TONE DIRECTIVE: Must be **Punchy, engaging, trendy, and scroll-stopping**.
-                - HARD PLATFORM RULE: You must first classify the product as B2B or B2C. 
-                  * IF B2C (Cosmetics, personal tech, consumer goods): You are STRICTLY FORBIDDEN from using LinkedIn. You must allocate your 5 posts across Instagram, Facebook, and X ONLY (e.g., 3 on Instagram, 2 on Facebook).
-                  * IF B2B (Enterprise software, corporate tools): You are STRICTLY FORBIDDEN from using Instagram and Facebook. You must allocate your 5 posts across LinkedIn and X ONLY (e.g., 3 on LinkedIn, 2 on X).
-                - FORMATTING: Group your 5 posts sequentially by platform. Use an H3 sub-header for each post indicating the platform and sequence (e.g., ### Instagram - Post 1 of 3). You MUST add a blank line between the header, the post body, and the hashtags.
-                - MAKE IT DATA-DRIVEN: Include specific technical numbers and flagship features.
-                - **Bold** the hashtags at the bottom.
+                - HARD PLATFORM RULE: You must first classify the product as B2B or B2C.(pls note that the classification B2B or B2C need not be explicitly stated in the Source of Truth. You must infer it based on the product features and target audience and no need to print it out under social media strategy).
+                                    * IF B2C (Cosmetics, personal tech, consumer goods): You are STRICTLY FORBIDDEN from using LinkedIn. You must allocate your posts across Instagram, Facebook, and X ONLY (e.g., 3 on Instagram, 2 on Facebook).
+                                    * IF B2B (Enterprise software, corporate tools): You are STRICTLY FORBIDDEN from using Instagram and Facebook. You must allocate your posts across LinkedIn and X ONLY (e.g., 3 on LinkedIn, 2 on X).
+                                - FORMATTING: Group your posts sequentially by platform. Use an H3 sub-header for each post indicating the platform and sequence (e.g., ### Instagram - Post 1 of 3). You MUST add a blank line between the header, the post body, and the hashtags.
+                                - ANTI-FLUFF RULE: EVERY SINGLE POST must highlight a DIFFERENT specific technical spec, number, color variant, or flagship feature from the fact-sheet. Do NOT use generic phrases without backing them up with hard data. (e.g., Post 1 can be an intro/feature, Post 2 can be price/other features).Also bold the specific feature or spec you are highlighting in each post (e.g., "Experience lightning-fast performance with the new **product name** or other examples with respect to type of product").
+                - **Bold** the hashtags at the bottom but same allignment as body. These hashtags must be a font size smaller than the post body (e.g., by using a blockquote or other Markdown formatting trick).
                
             3. ## Email Teaser
                 - TONE DIRECTIVE: Must be **Direct, persuasive, and urgency-driven**.
                 - 1-paragraph. Direct call-to-action. Mock URL: 'www.cymonic.com/launch'.
             """,
-            expected_output="A single Markdown document containing the 500-word Blog Post, 5 dynamically allocated social media posts adhering strictly to the B2B/B2C forbidden platform rules, and the Email Teaser.",
+            expected_output="A single Markdown document containing the 500-word Blog Post, a highly-technical, data-driven social media strategy (approx. 5-7 posts) adhering strictly to the B2B/B2C forbidden platform rules, and the Email Teaser. No conversational filler.",
             agent=agent,
             context=[context_task] 
         )
