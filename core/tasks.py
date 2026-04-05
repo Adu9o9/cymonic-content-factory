@@ -35,6 +35,8 @@ class ContentFactoryTasks:
             1. ## Blog Post
                 - TONE DIRECTIVE: Must be highly **Professional, authoritative, and educational**.
                 - Create a catchy title formatted as an H3 Markdown header (e.g., ### [Catchy Title]).
+                - FORMATTING RULE: Break up the text for maximum readability. You MUST **bold** the core features, technical specifications, and key value propositions throughout the paragraphs. 
+                - STRUCTURE RULE: Include at least one bulleted list highlighting the top 3 standout benefits of the product.
                 - Write a comprehensive, highly engaging **500-word blog post**. Expand on the value propositions and technical specs.
                
             2. ## Social Media Strategy
@@ -46,11 +48,16 @@ class ContentFactoryTasks:
                                 - ANTI-FLUFF RULE: EVERY SINGLE POST must highlight a DIFFERENT specific technical spec, number, color variant, or flagship feature from the fact-sheet. Do NOT use generic phrases without backing them up with hard data. (e.g., Post 1 can be an intro/feature, Post 2 can be price/other features).Also bold the specific feature or spec you are highlighting in each post (e.g., "Experience lightning-fast performance with the new **product name** or other examples with respect to type of product").
                 - **Bold** the hashtags at the bottom but same allignment as body. These hashtags must be a font size smaller than the post body (e.g., by using a blockquote or other Markdown formatting trick).
                
-            3. ## Email Teaser
-                - TONE DIRECTIVE: Must be **Direct, persuasive, and urgency-driven**.
-                - 1-paragraph. Direct call-to-action. Mock URL: 'www.cymonic.com/launch'.
+                        3. ## Email Teaser (A/B Testing Strategy)
+                                - You must generate TWO distinct email variants for marketing to A/B test.
+                                - ### Variant A: Logic & Feature-Driven
+                                    * TONE: Professional, analytical, focused on ROI, technical specs, and concrete value.
+                                    * 1-paragraph. Direct call-to-action. Mock URL: 'www.cymonic.com/launch'.
+                                - ### Variant B: Emotion & Urgency-Driven
+                                    * TONE: Punchy, FOMO-inducing (Fear Of Missing Out), focused on pain points, speed, and exclusivity.
+                                    * 1-paragraph. Direct call-to-action. Mock URL: 'www.cymonic.com/launch'.
             """,
-            expected_output="A single Markdown document containing the 500-word Blog Post, a highly-technical, data-driven social media strategy (approx. 5-7 posts) adhering strictly to the B2B/B2C forbidden platform rules, and the Email Teaser. No conversational filler.",
+                        expected_output="A single Markdown document containing the 500-word Blog Post, a highly-technical social media strategy strictly adhering to platform rules, and TWO distinct Email Teasers (Variant A and Variant B) for A/B testing. No conversational filler.",
             agent=agent,
             context=[context_task] 
         )

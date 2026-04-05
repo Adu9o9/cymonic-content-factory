@@ -107,6 +107,7 @@ st.markdown("""
             gap: 2rem;
             border-bottom: 1px solid #e0e0e0;
         }
+        
         /* Unselected Tab - Gray but completely visible */
         [data-baseweb="tab"] {
             color: #888888 !important;
@@ -114,11 +115,17 @@ st.markdown("""
             font-weight: 500 !important;
             font-size: 1.1rem !important;
         }
+        
         /* Selected Tab - Bold and Black */
         [aria-selected="true"] {
             color: #111111 !important;
             font-weight: 700 !important;
-            border-bottom: 2px solid #111111 !important;
+            /* We deleted the manual border-bottom from here! */
+        }
+        
+        /* Force the native sliding tab indicator to be Black instead of Red */
+        div[data-baseweb="tab-highlight"] {
+            background-color: #111111 !important;
         }
         /* Fix the URL Input Box to be White like the Text Area */
         .stTextInput input {
@@ -146,6 +153,12 @@ st.markdown("""
             color: #555555 !important;
             font-weight: 500 !important;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        }
+
+        /* --- Foolproof Toggle Visibility --- */
+        [data-testid="stToggle"] div[data-baseweb="checkbox"] > div:first-child {
+            background-color: #E2E8F0 !important;
+            border: 2px solid #CBD5E1 !important; /* Forces a visible outline! */
         }
     </style>
 """, unsafe_allow_html=True)
@@ -194,6 +207,13 @@ with col_main:
     with btn_col2:
         run_button = st.button("Initialize Pipeline")
 
+# --- INITIALIZE MEMORY ---
+# This prevents the UI from wiping out when you click the toggle
+if "campaign_data" not in st.session_state:
+    st.session_state.campaign_data = None
+if "text_vault" not in st.session_state:
+    st.session_state.text_vault = ""
+
 if run_button:
     if not source_text.strip():
         st.warning("⚠️ Please provide product specifications to begin.")
@@ -228,10 +248,7 @@ if run_button:
             start_time = time.time()
             result = crew.kickoff()
             end_time = time.time()
-            
-            # Calculate total seconds, rounded to 2 decimal places
             execution_time = round(end_time - start_time, 2)
-            # --------------------
             
             final_campaign_text = audit_campaign.output.raw
             image_prompt_text = design_visual.output.raw
@@ -239,45 +256,93 @@ if run_button:
             safe_prompt = urllib.parse.quote(image_prompt_text.strip())
             image_url = f"https://gen.pollinations.ai/image/{safe_prompt}?model=flux&key={pollinations_key}"
             
+            # --- SAVE TO MEMORY ---
+            st.session_state.campaign_data = {
+                "image_url": image_url,
+                "prompt": image_prompt_text,
+                "time": execution_time
+            }
+            # Lock the initial AI output into the vault
+            st.session_state.text_vault = final_campaign_text
+            
             status.update(label="Pipeline Execution Complete", state="complete", expanded=False)
 
-        st.markdown("<br><hr style='border: 0; height: 1px; background: #E2E8F0;'><br>", unsafe_allow_html=True)
+# --- RENDER RESULTS FROM MEMORY ---
+# This block runs even after a toggle interaction because the data is saved
+if st.session_state.campaign_data:
+    data = st.session_state.campaign_data
+    
+    st.markdown("<br><hr style='border: 0; height: 1px; background: #E2E8F0;'><br>", unsafe_allow_html=True)
+    
+    # --- RESULTS SECTION ---
+    col_img, col_text = st.columns([1, 1.2], gap="large")
+    
+    with col_img:
+        st.markdown("<h3 style='font-family: Playfair Display, serif; font-weight: 600; color: #111;'>Visual Asset</h3>", unsafe_allow_html=True)
+        st.markdown(f'<img src="{data["image_url"]}" alt="Campaign Cover" width="100%" style="border-radius: 2px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">', unsafe_allow_html=True)
+        st.markdown(f"<p style='font-size: 0.8rem; color: #888; margin-top: 10px;'><strong>Flux Prompt:</strong> {data['prompt']}</p>", unsafe_allow_html=True)
+        st.caption("⚠️ *Note: API rate-limited to 10 image generations per hour.*")
         
-        # --- RESULTS SECTION ---
-        col_img, col_text = st.columns([1, 1.2], gap="large")
+    with col_text:
+        # --- HEADER & TOGGLE ROW ---
+        # We split the top row to put the toggle next to the header
+        header_col, toggle_col = st.columns([0.75, 0.25])
+        with header_col:
+            st.markdown("<h3 style='font-family: Playfair Display, serif; font-weight: 600; color: #111; margin-bottom: 0;'>Fact-Checked Copy</h3>", unsafe_allow_html=True)
+        with toggle_col:
+            # We draw our own guaranteed-black text using HTML
+            st.markdown("<p style='color: #111111; font-weight: 600; font-size: 1.1rem; margin-bottom: 5px; margin-top: 5px;'>✏️ Edit</p>", unsafe_allow_html=True)
+            
+            # We create the toggle, but tell Streamlit to completely hide its native label
+            edit_mode = st.toggle("hidden_edit_toggle", label_visibility="collapsed")
         
-        with col_img:
-            st.markdown("<h3 style='font-family: Playfair Display, serif; font-weight: 600; color: #111;'>Visual Asset</h3>", unsafe_allow_html=True)
-            st.markdown(f'<img src="{image_url}" alt="Campaign Cover" width="100%" style="border-radius: 2px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">', unsafe_allow_html=True)
-            st.markdown(f"<p style='font-size: 0.8rem; color: #888; margin-top: 10px;'><strong>Flux Prompt:</strong> {image_prompt_text}</p>", unsafe_allow_html=True)
-            st.caption("⚠️ *Note: API rate-limited to 10 image generations per hour.*")
-            
-        with col_text:
-            st.markdown("<h3 style='font-family: Playfair Display, serif; font-weight: 600; color: #111;'>Fact-Checked Copy</h3>", unsafe_allow_html=True)
-            st.markdown(final_campaign_text)
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            full_download_content = f"![Campaign Cover]({image_url})\n\n{final_campaign_text}"
-            st.download_button(
-                label="Download Assets (.md)",
-                data=full_download_content,
-                file_name="cymonic_campaign.md",
-                mime="text/markdown",
-            )
+        st.markdown("<br>", unsafe_allow_html=True)
 
-        # --- EXECUTION ANALYTICS WIDGET ---
-        st.markdown("<br><hr>", unsafe_allow_html=True)
-        st.markdown("<h3 style='font-family: Playfair Display; color: #111;'>📊 Pipeline Execution Analytics</h3>", unsafe_allow_html=True)
+        # --- DYNAMIC RENDERING ---
         
-        # Create 3 beautiful columns for our metrics
-        col1, col2, col3 = st.columns(3)
+        # This function intercepts your typing and saves it to the vault
+        def save_edits():
+            st.session_state.text_vault = st.session_state.temp_editor
+            
+        if edit_mode:
+            st.info("💡 **Human-in-the-Loop:** Edit your campaign below. Toggle off to preview the final format.")
+            # We use a temporary key and trigger the save function on every keystroke
+            st.text_area(
+                label="Campaign Editor", 
+                value=st.session_state.text_vault,
+                key="temp_editor", 
+                on_change=save_edits,
+                height=600, 
+                label_visibility="collapsed"
+            )
+        else:
+            # Presentation mode reads safely from the vault
+            st.markdown(st.session_state.text_vault)
         
-        with col1:
-            st.metric(label="⏱️ Assembly Line Speed", value=f"{execution_time} sec")
-            
-        with col2:
-            st.metric(label="🤖 Agents Orchestrated", value="4 Autonomous Nodes")
-            
-        with col3:
-            # A fun flex to show you are using the Groq Free Tier efficiently
-            st.metric(label="💰 Est. Compute Cost", value="$0.00", delta="-100% vs OpenAI")
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # The download button always grabs the latest vault text
+        full_download_content = f"![Campaign Cover]({data['image_url']})\n\n{st.session_state.text_vault}"
+        
+        st.download_button(
+            label="💾 Download Campaign (.md)",
+            data=full_download_content,
+            file_name="cymonic_campaign.md",
+            mime="text/markdown",
+            use_container_width=True
+        )
+
+    # --- EXECUTION ANALYTICS WIDGET ---
+    st.markdown("<br><hr>", unsafe_allow_html=True)
+    st.markdown("<h3 style='font-family: Playfair Display; color: #111;'>📊 Pipeline Execution Analytics</h3>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric(label="⏱️ Assembly Line Speed", value=f"{data['time']} sec")
+        
+    with col2:
+        st.metric(label="🤖 Agents Orchestrated", value="4 Autonomous Nodes")
+        
+    with col3:
+        st.metric(label="💰 Est. Compute Cost", value="$0.00", delta="-100% vs OpenAI")

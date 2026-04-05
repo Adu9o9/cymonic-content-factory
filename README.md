@@ -1,4 +1,4 @@
-# ⚙️ Autonomous Content Factory
+# ⚙️ CYMONIC: Autonomous Content Factory
 
 🌍 **Live Demo:** [INSERT_YOUR_STREAMLIT_LINK_HERE]
 ▶️ **Video Walkthrough:** [INSERT_YOUTUBE_OR_LOOM_LINK_HERE]
@@ -9,17 +9,24 @@ When product features launch, Marketing teams must manually repurpose technical 
 ## The Solution
 An autonomous, multi-agent AI pipeline that transforms raw, messy product specifications into fact-checked, brand-safe marketing assets and custom generative visuals. 
 
-While the minimum requirement requested a 2-agent system, this solution goes the "Extra Mile" by implementing a **4-Agent Human-in-the-Loop (HITL) Architecture**:
+While the minimum requirement requested a basic 2-agent system, this solution goes the "Extra Mile" by implementing a **4-Agent Human-in-the-Loop (HITL) Architecture** with an enterprise-grade UI:
 1. **Fact-Check & Research Agent:** Extracts specs and builds a strict "Source of Truth" Fact-Sheet, explicitly flagging ambiguous red flags.
-2. **Creative Copywriter Agent:** Generates a 500-word blog, a 5-post social media thread, and an email teaser, dynamically adjusting tone.
+2. **Creative Copywriter Agent:** Generates a highly-formatted 500-word blog, a platform-specific social media thread, and an A/B tested email teaser sequence.
 3. **Editor Agent (Anti-Hallucination Gate):** Autonomously cross-references the copywriter's draft against the Fact-Sheet's red flags, scrubbing unverified claims before the user sees it.
-4. **Visual Director Agent:** Analyzes the polished copy and generates a highly contextual prompt to render a custom product image.
+4. **Visual Director Agent:** Analyzes the polished copy and generates a highly contextual, typography-safe prompt to render a custom product image.
+
+## 🚀 "Extra Mile" Features Implemented
+* **Dynamic Web Scraping:** Integrated BeautifulSoup4 to ingest messy HTML product pages directly via URL, bypassing the need for manual copy-pasting.
+* **A/B Testing Engine:** The copywriter autonomously generates two distinct psychological email variants (Logic-Driven vs. Emotion-Driven) for campaign testing.
+* **Human-in-the-Loop (HITL) Editor:** A custom Streamlit session-state toggle that transforms the read-only markdown into a live, editable text area, allowing human review before export.
+* **Execution Analytics Dashboard:** Real-time metrics tracking agent assembly speed and compute costs, demonstrating a focus on B2B cloud economics.
+* **Bespoke UI/CSS:** Heavy CSS injection to override Streamlit's default components, creating a "Quiet Luxury", enterprise-grade Dark/Light aesthetic.
 
 ## Tech Stack
 * **Programming Language:** Python 3.11
-* **Frontend Framework:** Streamlit (with custom CSS/HTML injections for an editorial B2B UI)
+* **Frontend Framework:** Streamlit 
 * **Agent Orchestration:** CrewAI
-* **LLM Engine:** Groq API (Llama 3.3 70B) via LiteLLM routing
+* **LLM Engine:** Groq API (Llama 3.3 70B) for ultra-fast, zero-cost inference
 * **Image Generation API:** Pollinations.ai (Flux Model)
 
 ## Setup Instructions
@@ -55,6 +62,6 @@ POLLINATIONS_API_KEY="your_pollinations_secret_key_here"
 Bash
 streamlit run app.py
 Known Limitations & Trade-offs
-API Rate Limiting: The Pollinations.ai API free tier is rate-limited to 10 image generations per hour.
+Image API Rate Limiting: The Pollinations.ai API free tier is rate-limited to 10 image generations per hour.
 
-Text/URL Ingestion: Currently optimized for raw text pasting. Future iterations would include a BeautifulSoup4 scraper to ingest URLs directly.
+Context Window Limits: The web scraper automatically truncates HTML text to 2,500 characters to prevent Groq's 12k TPM rate limits from crashing the multi-agent cascade.
