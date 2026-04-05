@@ -1,6 +1,6 @@
 # ⚙️ CYMONIC: Autonomous Content Factory
 
-🌍 **Live Demo:** [INSERT_YOUR_STREAMLIT_LINK_HERE]
+🌍 **Live Demo:** https://cymonic-content-factory-r3zwb8lm3prpbturmpkvz6.streamlit.app/
 ▶️ **Video Walkthrough:** [INSERT_YOUTUBE_OR_LOOM_LINK_HERE]
 
 ## The Problem
@@ -28,6 +28,11 @@ While the minimum requirement requested a basic 2-agent system, this solution go
 * **Agent Orchestration:** CrewAI
 * **LLM Engine:** Groq API (Llama 3.3 70B) for ultra-fast, zero-cost inference
 * **Image Generation API:** Pollinations.ai (Flux Model)
+
+## Known Limitations & Trade-offs
+* **Image API Rate Limiting:** The Pollinations.ai API free tier is rate-limited to 10 image generations per hour.
+
+* **Context Window Limits:** The web scraper automatically truncates HTML text to 2,500 characters to prevent Groq's 12k TPM rate limits from crashing the multi-agent cascade.
 
 ## Setup Instructions
 
@@ -61,7 +66,3 @@ POLLINATIONS_API_KEY="your_pollinations_secret_key_here"
 
 Bash
 streamlit run app.py
-Known Limitations & Trade-offs
-Image API Rate Limiting: The Pollinations.ai API free tier is rate-limited to 10 image generations per hour.
-
-Context Window Limits: The web scraper automatically truncates HTML text to 2,500 characters to prevent Groq's 12k TPM rate limits from crashing the multi-agent cascade.
