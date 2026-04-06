@@ -1,7 +1,8 @@
 # ⚙️ CYMONIC: Autonomous Content Factory
 
 🌍 **Live Demo:** https://cymonic-content-factory-r3zwb8lm3prpbturmpkvz6.streamlit.app/
-▶️ **Video Walkthrough:** [INSERT_YOUTUBE_OR_LOOM_LINK_HERE]
+
+▶️ **Video Walkthrough:** https://drive.google.com/file/d/1yE880mGZf8lpxCTayNKzlIq_vRAyw9Cq/view?usp=sharing
 
 ## The Problem
 When product features launch, Marketing teams must manually repurpose technical specifications into blogs, social threads, and emails. This repetitive manual rewriting causes creative burnout, delays product launches, and introduces critical factual errors and inconsistent tones across different platforms.
