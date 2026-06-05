@@ -1,6 +1,8 @@
 import streamlit as st
 import json
 import os
+# --- ABSOLUTE FIRST THING: Force LiteLLM to drop Groq's unsupported params ---
+os.environ["LITELLM_DROP_PARAMS"] = "True"
 import time
 import urllib.parse
 import requests
