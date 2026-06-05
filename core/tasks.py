@@ -71,9 +71,24 @@ class ContentFactoryTasks:
             YOUR JOB:
             1. Look at the "Red Flags" section of the Source of Truth. 
             2. If the Copywriter included ANY of the specific red flags in the Blog, X Post, LinkedIn Post, or Email, rewrite that section to remove the claim entirely. 
-            3. RULE: Output ONLY the final, polished marketing campaign markdown. Do NOT output any conversational text or notes.
+            
+                        CRITICAL REQUIREMENT:
+                        Do NOT wrap your entire response in a JSON object. Large markdown files break JSON string formatting.
+                        Instead, you MUST use exactly this format:
+
+                        [Your final, polished markdown campaign text here]
+
+                        ===AUDIT_LOG===
+                        {
+                            "removed_features": [
+                                {"feature": "Name of removed claim", "reason": "Why it was removed"}
+                            ],
+                            "corrected_facts": [
+                                {"original": "The original fake claim", "corrected": "The accurate claim"}
+                            ]
+                        }
             """,
-            expected_output="The final, corrected Markdown document, free of any red-flag claims and conversational notes.",
+                        expected_output="The polished markdown, followed exactly by '===AUDIT_LOG===', followed by the JSON audit log.",
             agent=agent,
             context=[extract_task, copy_task] 
         )

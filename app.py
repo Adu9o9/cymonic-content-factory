@@ -1,4 +1,5 @@
 import streamlit as st
+import json
 import os
 import time
 import urllib.parse
@@ -68,9 +69,18 @@ st.markdown("""
             line-height: 1.6 !important;
             caret-color: #2563EB !important; /* <-- This fixes the invisible typing cursor! */
         }
+        /* Force the placeholder text to be visible and gray */
+        textarea::placeholder {
+            color: #888888 !important;
+            opacity: 1 !important;
+        }
+        input::placeholder {
+            color: #888888 !important;
+            opacity: 1 !important;
+        }
         
-        /* Style the Primary Button */
-        div[data-testid="stButton"] > button {
+        /* Style the Primary Button ONLY */
+        div[data-testid="stButton"] button[kind="primary"] {
             background-color: #1A1A1A !important;
             color: #FFFFFF !important;
             border: none !important;
@@ -83,8 +93,25 @@ st.markdown("""
             width: 100%;
             transition: background-color 0.3s ease;
         }
-        div[data-testid="stButton"] > button:hover {
+        div[data-testid="stButton"] button[kind="primary"]:hover {
             background-color: #333333 !important;
+        }
+
+        /* Style Secondary Buttons (Like the Upload Sample Data button) */
+        div[data-testid="stButton"] button[kind="secondary"] {
+            background-color: transparent !important;
+            color: #111111 !important;
+            border: 1px solid #D1D5DB !important;
+            border-radius: 4px !important;
+            font-weight: 500 !important;
+            font-size: 0.85rem !important;
+            letter-spacing: 0.5px !important;
+            text-transform: uppercase !important;
+            transition: all 0.3s ease;
+        }
+        div[data-testid="stButton"] button[kind="secondary"]:hover {
+            background-color: #F3F4F6 !important;
+            border-color: #9CA3AF !important;
         }
         
         /* Style the Download Button slightly differently */
@@ -154,7 +181,15 @@ st.markdown("""
             font-weight: 500 !important;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
         }
-
+        /* --- Fix Alert & Warning Box Text Colors --- */
+        div[data-testid="stAlert"] * {
+            color: #1A1A1A !important;
+        }
+        
+        /* Ensure the icons inside the boxes don't get overridden by the dark color */
+        div[data-testid="stAlert"] svg {
+            fill: inherit !important;
+        }
         /* --- Foolproof Toggle Visibility --- */
         [data-testid="stToggle"] div[data-baseweb="checkbox"] > div:first-child {
             background-color: #E2E8F0 !important;
@@ -181,7 +216,34 @@ with col_main:
     tab1, tab2 = st.tabs(["📝 Paste Text", "🌐 Scrape URL"])
     
     with tab1:
-        source_text_input = st.text_area("Raw Product Details", height=200, placeholder="Paste your messy product specs, developer notes, or Slack messages here...")
+        def apply_sample_text():
+            st.session_state.my_raw_text = (
+                "Introducing the new SuperWidget 3000! It features a quantum processor "
+                "and is literally the fastest tool on the market. It has 16GB of RAM and a battery "
+                "that lasts all day, maybe even two days depending on how you use it. "
+                "Perfect for enterprise software developers. We might add a cloud sync feature later this year."
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        samp_col1, samp_col2, samp_col3 = st.columns([1, 1.5, 1])
+        with samp_col2:
+            st.button("Upload Sample Data", on_click=apply_sample_text, use_container_width=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        source_text_input = st.text_area(
+            label="Raw Text Input",
+            label_visibility="collapsed",
+            key="my_raw_text",
+            height=200,
+            placeholder=(
+                "Example: Introducing the new SuperWidget 3000! It features a quantum processor "
+                "and is literally the fastest tool on the market. It has 16GB of RAM and a battery "
+                "that lasts all day, maybe even two days depending on how you use it. "
+                "Perfect for enterprise software developers. We might add a cloud sync feature later this year."
+            )
+        )
         
     with tab2:
         url_input = st.text_input("Product Website URL", placeholder="e.g., https://www.apple.com/macbook-pro/")
@@ -205,7 +267,7 @@ with col_main:
     # Adjusted column math to perfectly dead-center the button
     btn_col1, btn_col2, btn_col3 = st.columns([1, 1.2, 1])
     with btn_col2:
-        run_button = st.button("Initialize Pipeline")
+        run_button = st.button("Initialize Pipeline", type="primary")
 
 # --- INITIALIZE MEMORY ---
 # This prevents the UI from wiping out when you click the toggle
@@ -249,9 +311,23 @@ if run_button:
             result = crew.kickoff()
             end_time = time.time()
             execution_time = round(end_time - start_time, 2)
-            
-            final_campaign_text = audit_campaign.output.raw
+
+            raw_output = audit_campaign.output.raw
             image_prompt_text = design_visual.output.raw
+
+            # --- AI GUARDRAIL: DELIMITER PARSING ---
+            if "===AUDIT_LOG===" in raw_output:
+                parts = raw_output.split("===AUDIT_LOG===")
+                final_campaign_text = parts[0].strip()
+
+                try:
+                    json_str = parts[1].replace("```json", "").replace("```", "").strip()
+                    audit_log_data = json.loads(json_str)
+                except Exception:
+                    audit_log_data = {"removed_features": [], "corrected_facts": []}
+            else:
+                final_campaign_text = raw_output.replace("```json", "").replace("```", "")
+                audit_log_data = {"removed_features": [], "corrected_facts": []}
             pollinations_key = os.environ.get("POLLINATIONS_API_KEY", "")
             safe_prompt = urllib.parse.quote(image_prompt_text.strip())
             image_url = f"https://gen.pollinations.ai/image/{safe_prompt}?model=flux&key={pollinations_key}"
@@ -260,7 +336,8 @@ if run_button:
             st.session_state.campaign_data = {
                 "image_url": image_url,
                 "prompt": image_prompt_text,
-                "time": execution_time
+                "time": execution_time,
+                "audit_log": audit_log_data
             }
             # Lock the initial AI output into the vault
             st.session_state.text_vault = final_campaign_text
@@ -276,54 +353,71 @@ if st.session_state.campaign_data:
     
     # --- RESULTS SECTION ---
     col_img, col_text = st.columns([1, 1.2], gap="large")
-    
+
+    # === LEFT COLUMN: Image & Audit Log ===
     with col_img:
         st.markdown("<h3 style='font-family: Playfair Display, serif; font-weight: 600; color: #111;'>Visual Asset</h3>", unsafe_allow_html=True)
-        st.markdown(f'<img src="{data["image_url"]}" alt="Campaign Cover" width="100%" style="border-radius: 2px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">', unsafe_allow_html=True)
-        st.markdown(f"<p style='font-size: 0.8rem; color: #888; margin-top: 10px;'><strong>Flux Prompt:</strong> {data['prompt']}</p>", unsafe_allow_html=True)
+        st.markdown(
+            f'<img src="{data["image_url"]}" alt="Campaign Cover" width="100%" style="border-radius: 2px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">',
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<p style='font-size: 0.8rem; color: #888; margin-top: 10px;'><strong>Flux Prompt:</strong> {data['prompt']}</p>",
+            unsafe_allow_html=True
+        )
         st.caption("⚠️ *Note: API rate-limited to 10 image generations per hour.*")
-        
-    with col_text:
-        # --- HEADER & TOGGLE ROW ---
-        # We split the top row to put the toggle next to the header
-        header_col, toggle_col = st.columns([0.75, 0.25])
-        with header_col:
-            st.markdown("<h3 style='font-family: Playfair Display, serif; font-weight: 600; color: #111; margin-bottom: 0;'>Fact-Checked Copy</h3>", unsafe_allow_html=True)
-        with toggle_col:
-            # We draw our own guaranteed-black text using HTML
-            st.markdown("<p style='color: #111111; font-weight: 600; font-size: 1.1rem; margin-bottom: 5px; margin-top: 5px;'>✏️ Edit</p>", unsafe_allow_html=True)
-            
-            # We create the toggle, but tell Streamlit to completely hide its native label
-            edit_mode = st.toggle("hidden_edit_toggle", label_visibility="collapsed")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
 
-        # --- DYNAMIC RENDERING ---
-        
-        # This function intercepts your typing and saves it to the vault
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<h3 style='font-family: Playfair Display, serif; font-weight: 600; color: #111;'>🛡️ AI Audit Log</h3>", unsafe_allow_html=True)
+        st.caption("Active guardrails filtered these claims before production.")
+
+        audit_log = data.get("audit_log") if isinstance(data.get("audit_log"), dict) else {}
+        removed_items = audit_log.get("removed_features", []) if isinstance(audit_log.get("removed_features"), list) else []
+        corrected_items = audit_log.get("corrected_facts", []) if isinstance(audit_log.get("corrected_facts"), list) else []
+
+        if not removed_items:
+            st.success("✅ No unverified claims found.")
+        else:
+            for item in removed_items:
+                st.error(
+                    f"❌ **Removed:** {item.get('feature', 'Unknown')}  \n*Reason:* {item.get('reason', 'Failed validation')}"
+                )
+
+        if corrected_items:
+            for item in corrected_items:
+                st.warning(
+                    f"🔄 **Changed:** '{item.get('original', '')}' ➡️ '{item.get('corrected', '')}'"
+                )
+
+    # === RIGHT COLUMN: Campaign Copy & Fixed Toggle ===
+    with col_text:
+        header_col, toggle_col = st.columns([0.8, 0.2])
+        with header_col:
+            st.markdown("<h3 style='font-family: Playfair Display, serif; font-weight: 600; color: #111;'>Fact-Checked Copy</h3>", unsafe_allow_html=True)
+        with toggle_col:
+            edit_mode = st.toggle("✏️ Edit Mode")
+
+        st.markdown("---")
+
         def save_edits():
             st.session_state.text_vault = st.session_state.temp_editor
-            
+
         if edit_mode:
             st.info("💡 **Human-in-the-Loop:** Edit your campaign below. Toggle off to preview the final format.")
-            # We use a temporary key and trigger the save function on every keystroke
             st.text_area(
-                label="Campaign Editor", 
+                label="Campaign Editor",
                 value=st.session_state.text_vault,
-                key="temp_editor", 
+                key="temp_editor",
                 on_change=save_edits,
-                height=600, 
+                height=600,
                 label_visibility="collapsed"
             )
         else:
-            # Presentation mode reads safely from the vault
             st.markdown(st.session_state.text_vault)
-        
+
         st.markdown("<br>", unsafe_allow_html=True)
-        
-        # The download button always grabs the latest vault text
+
         full_download_content = f"![Campaign Cover]({data['image_url']})\n\n{st.session_state.text_vault}"
-        
         st.download_button(
             label="💾 Download Campaign (.md)",
             data=full_download_content,
@@ -335,14 +429,14 @@ if st.session_state.campaign_data:
     # --- EXECUTION ANALYTICS WIDGET ---
     st.markdown("<br><hr>", unsafe_allow_html=True)
     st.markdown("<h3 style='font-family: Playfair Display; color: #111;'>📊 Pipeline Execution Analytics</h3>", unsafe_allow_html=True)
-    
+
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         st.metric(label="⏱️ Assembly Line Speed", value=f"{data['time']} sec")
-        
+
     with col2:
         st.metric(label="🤖 Agents Orchestrated", value="4 Autonomous Nodes")
-        
+
     with col3:
         st.metric(label="💰 Est. Compute Cost", value="$0.00", delta="-100% vs OpenAI")
