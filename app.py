@@ -10,6 +10,10 @@ from crewai import Crew, Process
 from core.agents import ContentFactoryAgents
 from core.tasks import ContentFactoryTasks
 
+# --- AI ROUTING FIX: Strip unsupported params for Groq ---
+import litellm
+litellm.drop_params = True
+
 def scrape_website(url):
     """Scrapes the main text content from a given URL."""
     try:
