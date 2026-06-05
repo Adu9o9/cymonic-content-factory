@@ -1,6 +1,6 @@
-crewai
+crewai==1.12.2
 crewai-tools
-litellm
+litellm==1.82.6
 python-dotenv
 streamlit
 beautifulsoup4
