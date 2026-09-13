@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import os
+import re
 # --- ABSOLUTE FIRST THING: Force LiteLLM to drop Groq's unsupported params ---
 os.environ["LITELLM_DROP_PARAMS"] = "True"
 import time
@@ -69,7 +70,10 @@ st.markdown("""
             border-radius: 4px !important;
             padding: 0.5rem !important;
         }
+        div[data-baseweb="textarea"] textarea,
+        div[data-baseweb="base-input"] textarea,
         textarea {
+            background-color: #FFFFFF !important;
             color: #1A1A1A !important;
             font-size: 1.1rem !important;
             line-height: 1.6 !important;
@@ -141,16 +145,20 @@ st.markdown("""
             border-bottom: 1px solid #e0e0e0;
         }
         
-        /* Unselected Tab - Gray but completely visible */
-        [data-baseweb="tab"] {
-            color: #888888 !important;
+        /* Keep both tab labels visible against Streamlit's theme */
+        [data-baseweb="tab"],
+        [data-baseweb="tab"] p,
+        [data-baseweb="tab"] span {
+            color: #111111 !important;
             background-color: transparent !important;
             font-weight: 500 !important;
             font-size: 1.1rem !important;
         }
         
         /* Selected Tab - Bold and Black */
-        [aria-selected="true"] {
+        [data-baseweb="tab"][aria-selected="true"],
+        [data-baseweb="tab"][aria-selected="true"] p,
+        [data-baseweb="tab"][aria-selected="true"] span {
             color: #111111 !important;
             font-weight: 700 !important;
             /* We deleted the manual border-bottom from here! */
@@ -303,12 +311,17 @@ if run_button:
             
             st.write("🎨 **Agent 4:** Generating visual prompt...")
             visual_director = agents.visual_director_agent()
-            design_visual = tasks.image_prompt_task(visual_director, audit_task=audit_campaign)
+            design_visual = tasks.image_prompt_task(
+                visual_director,
+                truth_task=extract_truth
+            )
             
             st.write("🚀 **Pipeline:** Initiating multi-agent collaboration...")
             crew = Crew(
                 agents=[researcher, copywriter, editor, visual_director],
                 tasks=[extract_truth, draft_campaign, audit_campaign, design_visual],
+                process=Process.sequential,
+                max_rpm=2,
                 verbose=True
             )
             
@@ -318,21 +331,40 @@ if run_button:
             end_time = time.time()
             execution_time = round(end_time - start_time, 2)
 
-            raw_output = audit_campaign.output.raw
-            image_prompt_text = design_visual.output.raw
+            def clean_think_tags(text):
+                if not text:
+                    return ""
+                cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+                return re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL).strip()
 
-            # --- AI GUARDRAIL: DELIMITER PARSING ---
+            raw_output = clean_think_tags(audit_campaign.output.raw)
+            image_prompt_text = clean_think_tags(design_visual.output.raw)
+            copywriter_draft = clean_think_tags(draft_campaign.output.raw)
+
+            def is_campaign_output(text):
+                lowered_text = text.lower()
+                request_phrases = (
+                    "please provide the marketing campaign",
+                    "i need the draft",
+                    "i'm ready to audit",
+                    "i am ready to audit",
+                )
+                return len(text) >= 50 and not any(
+                    phrase in lowered_text for phrase in request_phrases
+                )
+
             if "===AUDIT_LOG===" in raw_output:
                 parts = raw_output.split("===AUDIT_LOG===")
-                final_campaign_text = parts[0].strip()
-
+                final_campaign_text = parts[0].strip() or copywriter_draft
                 try:
                     json_str = parts[1].replace("```json", "").replace("```", "").strip()
                     audit_log_data = json.loads(json_str)
                 except Exception:
                     audit_log_data = {"removed_features": [], "corrected_facts": []}
             else:
-                final_campaign_text = raw_output.replace("```json", "").replace("```", "")
+                final_campaign_text = raw_output.replace("```json", "").replace("```", "").strip()
+                if not final_campaign_text or "i need the draft" in final_campaign_text.lower():
+                    final_campaign_text = copywriter_draft
                 audit_log_data = {"removed_features": [], "corrected_facts": []}
             pollinations_key = os.environ.get("POLLINATIONS_API_KEY", "")
             safe_prompt = urllib.parse.quote(image_prompt_text.strip())

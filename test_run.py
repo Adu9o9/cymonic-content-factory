@@ -29,7 +29,8 @@ audit_campaign = tasks.editing_task(editor, extract_truth, write_campaign)
 crew = Crew(
     agents=[researcher, copywriter, editor],
     tasks=[extract_truth, write_campaign, audit_campaign],
-    process=Process.sequential, 
+    process=Process.sequential,
+    max_rpm=1,
     verbose=True
 )
 

@@ -6,50 +6,58 @@ load_dotenv()
 
 class ContentFactoryAgents:
     def __init__(self):
-        # We are using Llama 3.3 70B for the ENTIRE assembly line. 
-        # It is brilliant, fast, and 100% free with no credit card locks.
-        self.llm = LLM(
-            model="groq/llama-3.3-70b-versatile",
-            api_key=os.environ.get("GROQ_API_KEY"),
-            temperature=0.4 # A balanced temperature for both facts and creativity
+        # Using Google's OpenAI-compatible endpoint to bypass native SDK crash loops
+        self.base_llm = LLM(
+            model="openai/gemini-3.8-flash",
+            api_key=os.environ.get("GEMINI_API_KEY"),
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+        )
+        self.writer_llm = LLM(
+            model="openai/gemini-3.8-flash",
+            api_key=os.environ.get("GEMINI_API_KEY"),
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
         )
 
     def research_agent(self):
         return Agent(
-            role='Lead Research & Fact-Check Analyst',
-            goal='Extract core product features, technical specs, and target audience from raw text to produce a structured "Source of Truth".',
-            backstory='You are a meticulous, highly analytical lead researcher. Your primary directive is to find the absolute truth in raw source material. You never assume, guess, or invent facts. You ruthlessly flag ambiguous statements.',
+            role='Researcher',
+            goal='Extract product facts and flag ambiguous claims.',
+            backstory='Analytical researcher strictly finding facts in raw text. CRITICAL: DO NOT output <think> tags or your internal reasoning process. Output ONLY the final requested format.',
             verbose=True,
             allow_delegation=False,
-            llm=self.llm
+            llm=self.base_llm,
+            max_iter=1
         )
 
     def copywriter_agent(self):
         return Agent(
-            role='Creative Copywriter',
-            goal='Transform structured fact-sheets into engaging, multi-channel marketing campaigns.',
-            backstory='You are a versatile, highly creative copywriter. You excel at adapting your tone for different platforms, from formal blogs to punchy social media threads. You strictly adhere to fact-sheets and never invent features, prices, or timelines that are not explicitly confirmed.',
+            role='Copywriter',
+            goal='Write a Blog Post, Social Strategy, and Email Teasers using only verified facts.',
+            backstory='Creative marketer who strictly follows fact-sheets. CRITICAL: DO NOT output <think> tags or your internal reasoning process. Output ONLY the final requested format.',
             verbose=True,
             allow_delegation=False,
-            llm=self.llm
+            llm=self.writer_llm,
+            max_iter=1
         )
 
     def editor_agent(self):
         return Agent(
-            role='Chief Editor & Brand Compliance Officer',
-            goal='Audit marketing copy to ensure absolute compliance with the Source of Truth and remove any unverified claims.',
-            backstory='You are a ruthless, detail-oriented Editor-in-Chief. You despise false advertising. You will read marketing drafts and cross-reference them against the original Source of Truth. If a draft mentions ANY feature listed in the "Red Flags" section, you will rewrite the copy to completely remove it.',
+            role='Editor-in-Chief',
+            goal='Remove unverified Red Flag claims from marketing drafts.',
+            backstory='Ruthless editor ensuring zero hallucinations. CRITICAL: DO NOT output <think> tags or your internal reasoning process. Output ONLY the final requested format.',
             verbose=True,
             allow_delegation=False,
-            llm=self.llm
+            llm=self.writer_llm,
+            max_iter=1
         )
 
     def visual_director_agent(self):
         return Agent(
-            role='Creative Visual Director',
-            goal='Analyze a marketing campaign and write a highly detailed, comma-separated prompt for an AI image generator.',
-            backstory='You are an elite art director. You read marketing copy and visualize the perfect accompanying image. You know that AI image generators need specific, comma-separated keywords (e.g., "subject, lighting, camera angle, style"). You output ONLY the prompt string, with no conversational text.',
+            role='Visual Director',
+            goal='Design a single 30-word image generation prompt.',
+            backstory='Minimalist art director. CRITICAL: DO NOT output <think> tags or your internal reasoning process. Output ONLY the final requested format.',
             verbose=True,
             allow_delegation=False,
-            llm=self.llm
+            llm=self.base_llm,
+            max_iter=1
         )
