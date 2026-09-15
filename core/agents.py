@@ -8,12 +8,12 @@ class ContentFactoryAgents:
     def __init__(self):
         # Using Google's OpenAI-compatible endpoint to bypass native SDK crash loops
         self.base_llm = LLM(
-            model="openai/gemini-3.8-flash",
+            model="openai/gemini-3.5-flash-lite",
             api_key=os.environ.get("GEMINI_API_KEY"),
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
         )
         self.writer_llm = LLM(
-            model="openai/gemini-3.8-flash",
+            model="openai/gemini-3.5-flash-lite",
             api_key=os.environ.get("GEMINI_API_KEY"),
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
         )
