@@ -2,6 +2,10 @@ import streamlit as st
 import json
 import os
 import re
+import hashlib
+from datetime import datetime
+from tenacity import retry, wait_exponential, stop_after_attempt
+
 # --- ABSOLUTE FIRST THING: Force LiteLLM to drop Groq's unsupported params ---
 os.environ["LITELLM_DROP_PARAMS"] = "True"
 import time
@@ -18,7 +22,7 @@ import litellm
 litellm.drop_params = True
 
 def scrape_website(url):
-    """Scrapes the main text content from a given URL."""
+    """Scrapes the main text content from a given URL and yields it in chunks."""
     try:
         # Pretend to be a normal web browser so websites don't block us
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -33,10 +37,42 @@ def scrape_website(url):
             
         # Get the clean text
         text = soup.get_text(separator=' ', strip=True)
-        return text[:2500] # Reduced from 5000 to prevent Groq 12k TPM Rate Limits!
         
+        # Yield in memory-safe 1000-character chunks
+        chunk_size = 1000
+        for i in range(0, len(text), chunk_size):
+            yield text[i:i + chunk_size]
+            
     except Exception as e:
-        return f"Error scraping URL: {str(e)}"
+        yield f"Error scraping URL: {str(e)}"
+
+def chunk_text(text, chunk_size=1000):
+    for i in range(0, len(text), chunk_size):
+        yield text[i:i + chunk_size]
+
+@retry(wait=wait_exponential(multiplier=1, min=4, max=10), stop=stop_after_attempt(3))
+def run_transformation_pipeline(chunk_text_data):
+    agents = ContentFactoryAgents()
+    tasks = ContentFactoryTasks()
+    
+    researcher = agents.research_agent()
+    extract_truth = tasks.extraction_task(researcher, chunk_text_data)
+    
+    copywriter = agents.copywriter_agent()
+    draft_campaign = tasks.copywriting_task(copywriter, context_task=extract_truth)
+    
+    editor = agents.editor_agent()
+    audit_campaign = tasks.editing_task(editor, extract_truth, draft_campaign)
+    
+    crew = Crew(
+        agents=[researcher, copywriter, editor],
+        tasks=[extract_truth, draft_campaign, audit_campaign],
+        process=Process.sequential,
+        max_rpm=2,
+        verbose=True
+    )
+    crew.kickoff()
+    return audit_campaign, draft_campaign
 
 load_dotenv()
 
@@ -264,17 +300,18 @@ with col_main:
         st.caption("The AI will invisibly scrape and read the webpage for you. *(Find a product page online, e.g., a smartwatch on Amazon or a software tool's landing page, and paste the URL here)*")
 
     # Determine which input to use
-    source_text = ""
+    source_chunks = []
     if url_input:
         with st.spinner("Scraping website data..."):
-            source_text = scrape_website(url_input)
-            if "Error" in source_text:
-                st.error(source_text)
-                source_text = "" # Reset if it failed
-            else:
+            for chunk in scrape_website(url_input):
+                if chunk.startswith("Error"):
+                    st.error(chunk)
+                else:
+                    source_chunks.append(chunk)
+            if source_chunks:
                 st.success("Website successfully scraped!")
     elif source_text_input:
-        source_text = source_text_input
+        source_chunks = list(chunk_text(source_text_input))
     
     st.markdown("<br>", unsafe_allow_html=True) # Extra whitespace before the button
     
@@ -291,95 +328,165 @@ if "text_vault" not in st.session_state:
     st.session_state.text_vault = ""
 
 if run_button:
-    if not source_text.strip():
+    if not source_chunks:
         st.warning("⚠️ Please provide product specifications to begin.")
     else:
-        with st.status("Executing Multi-Agent Pipeline...", expanded=True) as status:
-            st.write("🕵️‍♂️ **Agent 1:** Extracting Source of Truth...")
-            agents = ContentFactoryAgents()
-            tasks = ContentFactoryTasks()
-            researcher = agents.research_agent()
-            extract_truth = tasks.extraction_task(researcher, source_text)
+        with st.status("Executing Multi-Agent ETL Pipeline...", expanded=True) as status:
+            CACHE_FILE = "processed_hashes.json"
+            DLQ_FILE = "quarantine_records.json"
             
-            st.write("✍️ **Agent 2:** Drafting multi-channel campaign...")
-            copywriter = agents.copywriter_agent()
-            draft_campaign = tasks.copywriting_task(copywriter, context_task=extract_truth)
-            
-            st.write("🛡️ **Agent 3:** Auditing against Red Flags...")
-            editor = agents.editor_agent()
-            audit_campaign = tasks.editing_task(editor, extract_truth, draft_campaign)
-            
-            st.write("🎨 **Agent 4:** Generating visual prompt...")
-            visual_director = agents.visual_director_agent()
-            design_visual = tasks.image_prompt_task(
-                visual_director,
-                truth_task=extract_truth
-            )
-            
-            st.write("🚀 **Pipeline:** Initiating multi-agent collaboration...")
-            crew = Crew(
-                agents=[researcher, copywriter, editor, visual_director],
-                tasks=[extract_truth, draft_campaign, audit_campaign, design_visual],
-                process=Process.sequential,
-                max_rpm=2,
-                verbose=True
-            )
-            
-            # --- THE STOPWATCH ---
-            start_time = time.time()
-            result = crew.kickoff()
-            end_time = time.time()
-            execution_time = round(end_time - start_time, 2)
-
-            def clean_think_tags(text):
-                if not text:
-                    return ""
-                cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
-                return re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL).strip()
-
-            raw_output = clean_think_tags(audit_campaign.output.raw)
-            image_prompt_text = clean_think_tags(design_visual.output.raw)
-            copywriter_draft = clean_think_tags(draft_campaign.output.raw)
-
-            def is_campaign_output(text):
-                lowered_text = text.lower()
-                request_phrases = (
-                    "please provide the marketing campaign",
-                    "i need the draft",
-                    "i'm ready to audit",
-                    "i am ready to audit",
-                )
-                return len(text) >= 50 and not any(
-                    phrase in lowered_text for phrase in request_phrases
-                )
-
-            if "===AUDIT_LOG===" in raw_output:
-                parts = raw_output.split("===AUDIT_LOG===")
-                final_campaign_text = parts[0].strip() or copywriter_draft
-                try:
-                    json_str = parts[1].replace("```json", "").replace("```", "").strip()
-                    audit_log_data = json.loads(json_str)
-                except Exception:
-                    audit_log_data = {"removed_features": [], "corrected_facts": []}
+            if os.path.exists(CACHE_FILE):
+                with open(CACHE_FILE, 'r') as f:
+                    try:
+                        cache = json.load(f)
+                    except:
+                        cache = {}
             else:
-                final_campaign_text = raw_output.replace("```json", "").replace("```", "").strip()
-                if not final_campaign_text or "i need the draft" in final_campaign_text.lower():
-                    final_campaign_text = copywriter_draft
-                audit_log_data = {"removed_features": [], "corrected_facts": []}
-            pollinations_key = os.environ.get("POLLINATIONS_API_KEY", "")
-            safe_prompt = urllib.parse.quote(image_prompt_text.strip())
-            image_url = f"https://gen.pollinations.ai/image/{safe_prompt}?model=flux&key={pollinations_key}"
+                cache = {}
+                
+            dlq_count = 0
+            aggregated_campaign_text = ""
+            total_execution_time = 0
+            overall_audit_log = {"removed_features": [], "corrected_facts": []}
+
+            # Loop over chunks
+            for i, chunk in enumerate(source_chunks):
+                st.write(f"🔄 Processing Chunk {i+1}/{len(source_chunks)}...")
+                chunk_hash = hashlib.sha256(chunk.encode('utf-8')).hexdigest()
+                
+                if chunk_hash in cache:
+                    st.write(f"⚡ Cache Hit for Chunk {i+1} (Idempotent)")
+                    result_data = cache[chunk_hash]
+                    aggregated_campaign_text += result_data['campaign_text'] + "\n\n"
+                    
+                    if 'audit_log' in result_data:
+                        overall_audit_log['removed_features'].extend(result_data['audit_log'].get('removed_features', []))
+                        overall_audit_log['corrected_facts'].extend(result_data['audit_log'].get('corrected_facts', []))
+                    continue
+                
+                # Cache miss
+                st.write(f"🚀 Transforming Chunk {i+1} via Multi-Agent Crew...")
+                start_time = time.time()
+                try:
+                    audit_campaign, draft_campaign = run_transformation_pipeline(chunk)
+                    end_time = time.time()
+                    total_execution_time += round(end_time - start_time, 2)
+                    
+                    def clean_think_tags(text):
+                        if not text:
+                            return ""
+                        cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+                        return re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL).strip()
+
+                    raw_output = clean_think_tags(audit_campaign.output.raw)
+                    copywriter_draft = clean_think_tags(draft_campaign.output.raw)
+
+                    if "===AUDIT_LOG===" in raw_output:
+                        parts = raw_output.split("===AUDIT_LOG===")
+                        final_campaign_text = parts[0].strip() or copywriter_draft
+                        try:
+                            json_str = parts[1].replace("```json", "").replace("```", "").strip()
+                            audit_log_data = json.loads(json_str)
+                        except Exception:
+                            audit_log_data = {"removed_features": [], "corrected_facts": []}
+                    else:
+                        final_campaign_text = raw_output.replace("```json", "").replace("```", "").strip()
+                        if not final_campaign_text or "i need the draft" in final_campaign_text.lower():
+                            final_campaign_text = copywriter_draft
+                        audit_log_data = {"removed_features": [], "corrected_facts": []}
+                        
+                    # Save to cache
+                    result_data = {
+                        "campaign_text": final_campaign_text,
+                        "audit_log": audit_log_data
+                    }
+                    cache[chunk_hash] = result_data
+                    with open(CACHE_FILE, 'w') as f:
+                        json.dump(cache, f, indent=4)
+                        
+                    aggregated_campaign_text += final_campaign_text + "\n\n"
+                    overall_audit_log['removed_features'].extend(audit_log_data.get('removed_features', []))
+                    overall_audit_log['corrected_facts'].extend(audit_log_data.get('corrected_facts', []))
+                    
+                except Exception as e:
+                    dlq_count += 1
+                    st.write(f"❌ Chunk {i+1} failed after retries. Routing to DLQ.")
+                    error_entry = {
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "payload": chunk,
+                        "error_message": str(e)
+                    }
+                    if os.path.exists(DLQ_FILE):
+                        with open(DLQ_FILE, 'r') as f:
+                            try:
+                                dlq = json.load(f)
+                            except:
+                                dlq = []
+                    else:
+                        dlq = []
+                    dlq.append(error_entry)
+                    with open(DLQ_FILE, 'w') as f:
+                        json.dump(dlq, f, indent=4)
             
-            # --- SAVE TO MEMORY ---
-            st.session_state.campaign_data = {
-                "image_url": image_url,
-                "prompt": image_prompt_text,
-                "time": execution_time,
-                "audit_log": audit_log_data
-            }
-            # Lock the initial AI output into the vault
-            st.session_state.text_vault = final_campaign_text
-            
+            if dlq_count > 0:
+                st.warning(f"Pipeline finished with {dlq_count} record(s) routed to DLQ.")
+                
+            if not aggregated_campaign_text.strip():
+                st.error("Pipeline failed to generate any valid campaign content. Check DLQ.")
+            else:
+                st.write("🎨 **Generating final visual asset from aggregated results...**")
+                agg_hash = hashlib.sha256(aggregated_campaign_text.encode('utf-8')).hexdigest()
+                final_image_url = None
+                final_prompt = None
+                
+                if agg_hash in cache and 'image_url' in cache[agg_hash] and cache[agg_hash]['image_url']:
+                    st.write("⚡ Cache Hit for Final Image")
+                    final_image_url = cache[agg_hash]['image_url']
+                    final_prompt = cache[agg_hash].get('prompt', '')
+                else:
+                    from crewai import Task
+                    agents = ContentFactoryAgents()
+                    visual_director = agents.visual_director_agent()
+                    
+                    image_task = Task(
+                        description=f"Read the following campaign text: {aggregated_campaign_text[:1500]}. Output a 30-word image generation prompt. Ask to write the Product Name subtly on a relevant physical surface.",
+                        expected_output="A single sentence image prompt.",
+                        agent=visual_director
+                    )
+                    image_crew = Crew(
+                        agents=[visual_director],
+                        tasks=[image_task],
+                        process=Process.sequential,
+                        verbose=True
+                    )
+                    image_crew.kickoff()
+                    
+                    def clean_think_tags_final(text):
+                        if not text:
+                            return ""
+                        cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+                        return re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL).strip()
+                        
+                    final_prompt = clean_think_tags_final(image_task.output.raw)
+                    pollinations_key = os.environ.get("POLLINATIONS_API_KEY", "")
+                    safe_prompt = urllib.parse.quote(final_prompt.strip())
+                    final_image_url = f"https://gen.pollinations.ai/image/{safe_prompt}?model=flux&key={pollinations_key}"
+                    
+                    cache[agg_hash] = {
+                        "image_url": final_image_url,
+                        "prompt": final_prompt
+                    }
+                    with open(CACHE_FILE, 'w') as f:
+                        json.dump(cache, f, indent=4)
+                
+                st.session_state.campaign_data = {
+                    "image_url": final_image_url or "https://via.placeholder.com/600x400?text=No+Image",
+                    "prompt": final_prompt or "N/A",
+                    "time": total_execution_time,
+                    "audit_log": overall_audit_log
+                }
+                st.session_state.text_vault = aggregated_campaign_text.strip()
+                
             status.update(label="Pipeline Execution Complete", state="complete", expanded=False)
 
 # --- RENDER RESULTS FROM MEMORY ---
